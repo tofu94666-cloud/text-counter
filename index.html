@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文字計數工具</title>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d2e;
+      --surface2: #242740;
+      --accent: #6c63ff;
+      --accent2: #ff6584;
+      --accent3: #43e97b;
+      --accent4: #f7971e;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #2d3154;
+      --radius: 14px;
+      --shadow: 0 8px 32px rgba(0,0,0,.45);
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== Header ===== */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .badge {
+      font-size: .75rem;
+      background: var(--accent);
+      color: #fff;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    /* ===== Main layout ===== */
+    main {
+      flex: 1;
+      padding: 24px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ===== Textarea ===== */
+    .input-wrap {
+      position: relative;
+    }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.7;
+      padding: 16px 18px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+    .clear-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: .8rem;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .clear-btn:hover { background: var(--accent2); color: #fff; }
+
+    /* ===== View tabs ===== */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 9px 20px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: .9rem;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(108,99,255,.35);
+    }
+    .tab-btn:not(.active):hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ===== Views ===== */
+    .view { display: none; animation: fadeIn .3s ease; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* ===== Stat Cards (View 1) ===== */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      text-align: center;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .card .icon { font-size: 2rem; margin-bottom: 8px; }
+    .card .num {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .card .label { font-size: .8rem; color: var(--muted); }
+    .c1 .num { color: var(--accent); }
+    .c2 .num { color: var(--accent2); }
+    .c3 .num { color: var(--accent3); }
+    .c4 .num { color: var(--accent4); }
+    .c5 .num { color: #60c0ff; }
+    .c6 .num { color: #d97aff; }
+
+    /* ===== Char Breakdown (View 2) ===== */
+    .breakdown-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .breakdown-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .breakdown-item .bi-label { font-size: .8rem; color: var(--muted); margin-bottom: 6px; }
+    .bi-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bi-bar {
+      flex: 1;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--surface2);
+      overflow: hidden;
+    }
+    .bi-bar-inner {
+      height: 100%;
+      border-radius: 999px;
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+    }
+    .bi-num { font-size: 1.1rem; font-weight: 700; min-width: 40px; text-align: right; }
+
+    /* ===== Word Freq (View 3) ===== */
+    .freq-list { display: flex; flex-direction: column; gap: 8px; }
+    .freq-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: .9rem;
+    }
+    .freq-rank {
+      font-size: .75rem;
+      color: var(--muted);
+      min-width: 24px;
+      text-align: center;
+    }
+    .freq-word { font-weight: 600; flex: 1; }
+    .freq-bar-wrap { flex: 2; display: flex; align-items: center; gap: 8px; }
+    .freq-bar {
+      flex: 1; height: 8px; background: var(--surface2);
+      border-radius: 999px; overflow: hidden;
+    }
+    .freq-bar-inner {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+    }
+    .freq-count { font-size: .85rem; color: var(--muted); min-width: 28px; text-align: right; }
+    .no-words { color: var(--muted); font-size: .9rem; padding: 20px 0; text-align: center; }
+
+    /* ===== Reading Time (View 4) ===== */
+    .reading-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .reading-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .rc-label { font-size: .78rem; color: var(--muted); }
+    .rc-val { font-size: 1.6rem; font-weight: 800; }
+    .rc-desc { font-size: .78rem; color: var(--muted); }
+    .rc1 .rc-val { color: var(--accent3); }
+    .rc2 .rc-val { color: var(--accent); }
+    .rc3 .rc-val { color: var(--accent4); }
+    .rc4 .rc-val { color: var(--accent2); }
+
+    .speed-note {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      font-size: .85rem;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+    .speed-note span { color: var(--text); font-weight: 600; }
+
+    /* ===== Section title ===== */
+    .section-title {
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ===== Footer ===== */
+    footer {
+      text-align: center;
+      padding: 14px;
+      font-size: .78rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ===== Scrollbar ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>✍️ 文字計數工具</h1>
+  <span class="badge">4 種視圖</span>
+</header>
+
+<main>
+  <!-- Input -->
+  <div class="input-wrap">
+    <textarea id="inputText" placeholder="在這裡輸入或貼上您的文字…" oninput="analyze()"></textarea>
+    <button class="clear-btn" onclick="clearText()">✕ 清除</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(0)" id="tab0">📊 總覽統計</button>
+    <button class="tab-btn" onclick="switchTab(1)" id="tab1">🔡 字元分析</button>
+    <button class="tab-btn" onclick="switchTab(2)" id="tab2">📈 詞頻排行</button>
+    <button class="tab-btn" onclick="switchTab(3)" id="tab3">⏱ 閱讀時間</button>
+  </div>
+
+  <!-- View 1: Overview -->
+  <div class="view active" id="view0">
+    <div class="section-title">總覽統計</div>
+    <div class="cards">
+      <div class="card c1"><div class="icon">📝</div><div class="num" id="v1-chars">0</div><div class="label">總字元數</div></div>
+      <div class="card c2"><div class="icon">🔤</div><div class="num" id="v1-nospace">0</div><div class="label">不含空白</div></div>
+      <div class="card c3"><div class="icon">📖</div><div class="num" id="v1-words">0</div><div class="label">單詞 / 字數</div></div>
+      <div class="card c4"><div class="icon">🧱</div><div class="num" id="v1-sentences">0</div><div class="label">句子數</div></div>
+      <div class="card c5"><div class="icon">📄</div><div class="num" id="v1-paragraphs">0</div><div class="label">段落數</div></div>
+      <div class="card c6"><div class="icon">📏</div><div class="num" id="v1-lines">0</div><div class="label">行數</div></div>
+    </div>
+  </div>
+
+  <!-- View 2: Char Breakdown -->
+  <div class="view" id="view1">
+    <div class="section-title">字元分析</div>
+    <div class="breakdown-grid">
+      <div class="breakdown-item">
+        <div class="bi-label">中文字元</div>
+        <div class="bi-bar-wrap">
+          <div class="bi-bar"><div class="bi-bar-inner" id="bar-zh" style="background:var(--accent);width:0%"></div></div>
+          <div class="bi-num" id="num-zh" style="color:var(--accent)">0</div>
+        </div>
+      </div>
+      <div class="breakdown-item">
+        <div class="bi-label">英文字母</div>
+        <div class="bi-bar-wrap">
+          <div class="bi-bar"><div class="bi-bar-inner" id="bar-en" style="background:var(--accent2);width:0%"></div></div>
+          <div class="bi-num" id="num-en" style="color:var(--accent2)">0</div>
+        </div>
+      </div>
+      <div class="breakdown-item">
+        <div class="bi-label">數字</div>
+        <div class="bi-bar-wrap">
+          <div class="bi-bar"><div class="bi-bar-inner" id="bar-digit" style="background:var(--accent3);width:0%"></div></div>
+          <div class="bi-num" id="num-digit" style="color:var(--accent3)">0</div>
+        </div>
+      </div>
+      <div class="breakdown-item">
+        <div class="bi-label">標點符號</div>
+        <div class="bi-bar-wrap">
+          <div class="bi-bar"><div class="bi-bar-inner" id="bar-punct" style="background:var(--accent4);width:0%"></div></div>
+          <div class="bi-num" id="num-punct" style="color:var(--accent4)">0</div>
+        </div>
+      </div>
+      <div class="breakdown-item">
+        <div class="bi-label">空白字元</div>
+        <div class="bi-bar-wrap">
+          <div class="bi-bar"><div class="bi-bar-inner" id="bar-space" style="background:#60c0ff;width:0%"></div></div>
+          <div class="bi-num" id="num-space" style="color:#60c0ff">0</div>
+        </div>
+      </div>
+      <div class="breakdown-item">
+        <div class="bi-label">其他字元</div>
+        <div class="bi-bar-wrap">
+          <div class="bi-bar"><div class="bi-bar-inner" id="bar-other" style="background:#d97aff;width:0%"></div></div>
+          <div class="bi-num" id="num-other" style="color:#d97aff">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View 3: Word Frequency -->
+  <div class="view" id="view2">
+    <div class="section-title">詞頻排行（Top 20）</div>
+    <div class="freq-list" id="freqList"><p class="no-words">請輸入文字以查看詞頻排行…</p></div>
+  </div>
+
+  <!-- View 4: Reading Time -->
+  <div class="view" id="view3">
+    <div class="section-title">閱讀 / 語速估算</div>
+    <div class="reading-grid">
+      <div class="reading-card rc1">
+        <div class="rc-label">📖 一般閱讀</div>
+        <div class="rc-val" id="rt-normal">0 秒</div>
+        <div class="rc-desc">中文約 500 字/分鐘</div>
+      </div>
+      <div class="reading-card rc2">
+        <div class="rc-label">🐢 慢速閱讀</div>
+        <div class="rc-val" id="rt-slow">0 秒</div>
+        <div class="rc-desc">中文約 250 字/分鐘</div>
+      </div>
+      <div class="reading-card rc3">
+        <div class="rc-label">🎤 朗讀速度</div>
+        <div class="rc-val" id="rt-speak">0 秒</div>
+        <div class="rc-desc">中文約 200 字/分鐘</div>
+      </div>
+      <div class="reading-card rc4">
+        <div class="rc-label">⚡ 快速掃讀</div>
+        <div class="rc-val" id="rt-fast">0 秒</div>
+        <div class="rc-desc">中文約 1000 字/分鐘</div>
+      </div>
+    </div>
+    <div class="speed-note">
+      📌 估算說明：<br>
+      本工具以文字中的<span>中文字元數</span>為基準進行閱讀時間估算。若文字以英文為主，另以<span>單詞數 × 5</span> 折算字元數供參考。<br>
+      實際閱讀時間因個人習慣與文章難度而有所不同。
+    </div>
+  </div>
+</main>
+
+<footer>文字計數工具 · 純前端，無需伺服器，所有計算在您的瀏覽器本機執行</footer>
+
+<script>
+  let currentTab = 0;
+
+  function switchTab(idx) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+    document.querySelectorAll('.view').forEach((v, i) => v.classList.toggle('active', i === idx));
+    currentTab = idx;
+  }
+
+  function clearText() {
+    document.getElementById('inputText').value = '';
+    analyze();
+  }
+
+  function analyze() {
+    const text = document.getElementById('inputText').value;
+
+    // ── View 1: Overview ──────────────────────────────
+    const chars = text.length;
+    const noSpace = text.replace(/\s/g, '').length;
+    const words = text.trim() === '' ? 0 : text.trim().split(/[\s\u3000]+/).filter(w => w.length > 0).length;
+    const sentences = text.split(/[。！？.!?]+/).filter(s => s.trim().length > 0).length;
+    const paragraphs = text.trim() === '' ? 0 : text.trim().split(/\n{2,}|\r\n{2,}/).filter(p => p.trim().length > 0).length || (text.trim().length > 0 ? 1 : 0);
+    const lines = text.trim() === '' ? 0 : text.split(/\n/).filter(l => l.trim().length > 0).length;
+
+    document.getElementById('v1-chars').textContent = chars.toLocaleString();
+    document.getElementById('v1-nospace').textContent = noSpace.toLocaleString();
+    document.getElementById('v1-words').textContent = words.toLocaleString();
+    document.getElementById('v1-sentences').textContent = sentences.toLocaleString();
+    document.getElementById('v1-paragraphs').textContent = paragraphs.toLocaleString();
+    document.getElementById('v1-lines').textContent = lines.toLocaleString();
+
+    // ── View 2: Char Breakdown ─────────────────────────
+    const zhCount = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g) || []).length;
+    const enCount = (text.match(/[a-zA-Z]/g) || []).length;
+    const digitCount = (text.match(/[0-9]/g) || []).length;
+    const punctCount = (text.match(/[！？。，、；：「」『』（）【】《》〈〉""''.,!?;:()\[\]{}<>@#$%^&*\-_+=|\\\/~`]/g) || []).length;
+    const spaceCount = (text.match(/\s/g) || []).length;
+    const otherCount = chars - zhCount - enCount - digitCount - punctCount - spaceCount;
+
+    const maxVal = Math.max(zhCount, enCount, digitCount, punctCount, spaceCount, otherCount, 1);
+    function setBar(barId, numId, val) {
+      document.getElementById(barId).style.width = (val / maxVal * 100) + '%';
+      document.getElementById(numId).textContent = val.toLocaleString();
+    }
+    setBar('bar-zh', 'num-zh', zhCount);
+    setBar('bar-en', 'num-en', enCount);
+    setBar('bar-digit', 'num-digit', digitCount);
+    setBar('bar-punct', 'num-punct', punctCount);
+    setBar('bar-space', 'num-space', spaceCount);
+    setBar('bar-other', 'num-other', Math.max(0, otherCount));
+
+    // ── View 3: Word Frequency ──────────────────────────
+    const freqList = document.getElementById('freqList');
+    if (text.trim() === '') {
+      freqList.innerHTML = '<p class="no-words">請輸入文字以查看詞頻排行…</p>';
+    } else {
+      const tokens = [];
+      const re = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]|[a-zA-Z0-9]+/g;
+      let m;
+      while ((m = re.exec(text)) !== null) tokens.push(m[0].toLowerCase());
+
+      const freq = {};
+      tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; });
+      const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 20);
+      const maxFreq = sorted[0]?.[1] || 1;
+
+      if (sorted.length === 0) {
+        freqList.innerHTML = '<p class="no-words">未偵測到有效詞彙…</p>';
+      } else {
+        freqList.innerHTML = sorted.map(([word, count], i) => `
+          <div class="freq-item">
+            <span class="freq-rank">${i + 1}</span>
+            <span class="freq-word">${escHtml(word)}</span>
+            <div class="freq-bar-wrap">
+              <div class="freq-bar"><div class="freq-bar-inner" style="width:${count / maxFreq * 100}%"></div></div>
+              <span class="freq-count">${count}</span>
+            </div>
+          </div>`).join('');
+      }
+    }
+
+    // ── View 4: Reading Time ────────────────────────────
+    const baseChars = zhCount > enCount ? zhCount : words * 5;
+    function fmtTime(minutes) {
+      if (minutes < 1) return Math.round(minutes * 60) + ' 秒';
+      if (minutes < 60) {
+        const m = Math.floor(minutes);
+        const s = Math.round((minutes - m) * 60);
+        return s > 0 ? `${m} 分 ${s} 秒` : `${m} 分鐘`;
+      }
+      const h = Math.floor(minutes / 60);
+      const m = Math.round(minutes % 60);
+      return m > 0 ? `${h} 小時 ${m} 分` : `${h} 小時`;
+    }
+    document.getElementById('rt-normal').textContent = fmtTime(baseChars / 500);
+    document.getElementById('rt-slow').textContent   = fmtTime(baseChars / 250);
+    document.getElementById('rt-speak').textContent  = fmtTime(baseChars / 200);
+    document.getElementById('rt-fast').textContent   = fmtTime(baseChars / 1000);
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  analyze();
+</script>
+</body>
+</html>
